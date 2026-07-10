@@ -25,12 +25,12 @@ func buildFilterArgs(rawFilters, eventTypes []string) (filters.Args, error) {
 		}
 		parts := strings.SplitN(filter, "=", 2)
 		if len(parts) != 2 {
-			return filters.Args{}, fmt.Errorf("invalid docker filter %q, expected key=value", rawFilter)
+			return filters.Args{}, fmt.Errorf("无效的 Docker 过滤器 %q，期望格式为 key=value", rawFilter)
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 		if key == "" || value == "" {
-			return filters.Args{}, fmt.Errorf("invalid docker filter %q, expected key=value", rawFilter)
+			return filters.Args{}, fmt.Errorf("无效的 Docker 过滤器 %q，期望格式为 key=value", rawFilter)
 		}
 		args.Add(key, value)
 	}

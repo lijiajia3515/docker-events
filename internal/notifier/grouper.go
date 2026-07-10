@@ -41,7 +41,7 @@ func NewEventGrouper(notifier Notifier, cfg *config.Config) *EventGrouper {
 
 func (eg *EventGrouper) HandleEvent(ctx context.Context, event docker.Event) error {
 	if eg.windowDur <= 0 {
-		// Grouping disabled, send immediately
+		// 分组功能已禁用，立即发送
 		return eg.notifier.NotifyEvent(ctx, eg.cfg, event)
 	}
 
@@ -55,14 +55,14 @@ func (eg *EventGrouper) HandleEvent(ctx context.Context, event docker.Event) err
 
 	group, exists := eg.groups[containerID]
 	if !exists {
-		// Create new group
+		// 创建新分组
 		group = &eventGroup{
 			containerID: containerID,
 			events:      []docker.Event{event},
 		}
 		eg.groups[containerID] = group
 
-		// Set timer to flush this group after the window duration
+		// 设置定时器，在窗口时间后刷新此分组
 		group.timer = time.AfterFunc(eg.windowDur, func() {
 			eg.mu.Lock()
 			grp := eg.groups[containerID]
@@ -76,9 +76,9 @@ func (eg *EventGrouper) HandleEvent(ctx context.Context, event docker.Event) err
 			}
 		})
 	} else {
-		// Add to existing group
+		// 添加到现有分组
 		group.events = append(group.events, event)
-		// Reset timer to extend the window
+		// 重置定时器以延长窗口
 		if group.timer != nil {
 			group.timer.Stop()
 			group.timer = time.AfterFunc(eg.windowDur, func() {
@@ -107,10 +107,10 @@ func (eg *EventGrouper) flushGroup(events []docker.Event) {
 	ctx := context.Background()
 
 	if len(events) == 1 {
-		// Single event, send normally
+		// 单个事件，正常发送
 		_ = eg.notifier.NotifyEvent(ctx, eg.cfg, events[0])
 	} else {
-		// Multiple events, send grouped
+		// 多个事件，分组发送
 		_ = eg.notifier.NotifyGroupedEvents(ctx, eg.cfg, events)
 	}
 }

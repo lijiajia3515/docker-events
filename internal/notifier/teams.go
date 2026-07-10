@@ -10,7 +10,7 @@ import (
 
 func (n *notifierImpl) addTeams(cfg config.TeamsConfig) error {
 	if len(cfg.WebhookURLs) == 0 {
-		return fmt.Errorf("teams enabled but no webhook URLs configured")
+		return fmt.Errorf("已启用 Teams 但未配置 Webhook 地址")
 	}
 
 	service := msteams.New()

@@ -10,10 +10,11 @@ import (
 	"github.com/filippofinke/docker-events/internal/docker"
 )
 
+// formatEvent 格式化单个 Docker 事件，返回通知主题和正文
 func formatEvent(subjectPrefix string, event docker.Event) (string, string) {
 	prefix := strings.TrimSpace(subjectPrefix)
 	if prefix == "" {
-		prefix = "Docker event"
+		prefix = "Docker 事件"
 	}
 
 	subject := fmt.Sprintf("%s: %s %s", prefix, event.Type, event.Action)
@@ -22,25 +23,25 @@ func formatEvent(subjectPrefix string, event docker.Event) (string, string) {
 	}
 
 	var body strings.Builder
-	body.WriteString(fmt.Sprintf("Time: %s\n", event.Timestamp.Format(time.RFC3339)))
+	body.WriteString(fmt.Sprintf("🕐 时间: %s\n", event.Timestamp.Format(time.RFC3339)))
 	if event.Status != "" {
-		body.WriteString(fmt.Sprintf("Status: %s\n", event.Status))
+		body.WriteString(fmt.Sprintf("📋 状态: %s\n", event.Status))
 	}
 	if event.From != "" {
-		body.WriteString(fmt.Sprintf("From: %s\n", event.From))
+		body.WriteString(fmt.Sprintf("📦 来源: %s\n", event.From))
 	}
 	if event.Scope != "" {
-		body.WriteString(fmt.Sprintf("Scope: %s\n", event.Scope))
+		body.WriteString(fmt.Sprintf("🌐 范围: %s\n", event.Scope))
 	}
 	if event.ID != "" {
-		body.WriteString(fmt.Sprintf("ID: %s\n", event.ID))
+		body.WriteString(fmt.Sprintf("🔖 ID: %s\n", event.ID))
 	}
 	if event.Actor.ID != "" {
-		body.WriteString(fmt.Sprintf("Actor: %s\n", event.Actor.ID))
+		body.WriteString(fmt.Sprintf("👤 执行者: %s\n", event.Actor.ID))
 	}
 
 	if len(event.Actor.Attributes) > 0 {
-		body.WriteString("Attributes:\n")
+		body.WriteString("🏷️ 属性:\n")
 		keys := make([]string, 0, len(event.Actor.Attributes))
 		for key := range event.Actor.Attributes {
 			keys = append(keys, key)
@@ -54,6 +55,7 @@ func formatEvent(subjectPrefix string, event docker.Event) (string, string) {
 	return subject, strings.TrimSpace(body.String())
 }
 
+// formatGroupedEvents 格式化多个分组的 Docker 事件，返回通知主题和正文
 func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, string) {
 	if len(events) == 0 {
 		return "", ""
@@ -65,16 +67,16 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 
 	prefix := strings.TrimSpace(subjectPrefix)
 	if prefix == "" {
-		prefix = "Docker events"
+		prefix = "Docker 事件"
 	}
 
-	// Get container ID/Actor from first event
+	// 从第一个事件获取容器 ID/执行者
 	containerID := events[0].ID
 	if containerID == "" {
 		containerID = events[0].Actor.ID
 	}
 
-	// Collect unique actions
+	// 收集去重的操作类型
 	actions := make(map[string]bool)
 	for _, event := range events {
 		actions[event.Action] = true
@@ -85,22 +87,22 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 	}
 	sort.Strings(actionList)
 
-	subject := fmt.Sprintf("%s: %d events for container %s (%s)", prefix, len(events), containerID[:12], strings.Join(actionList, ", "))
+	subject := fmt.Sprintf("🐳 %s: 容器 %s 共 %d 个事件 (%s)", prefix, containerID[:12], len(events), strings.Join(actionList, ", "))
 
 	var body strings.Builder
-	body.WriteString(fmt.Sprintf("Container: %s\n", containerID))
-	body.WriteString(fmt.Sprintf("Event count: %d\n", len(events)))
-	body.WriteString(fmt.Sprintf("Time range: %s to %s\n\n",
+	body.WriteString(fmt.Sprintf("📦 容器: %s\n", containerID))
+	body.WriteString(fmt.Sprintf("🔢 事件数量: %d\n", len(events)))
+	body.WriteString(fmt.Sprintf("📅 时间范围: %s 至 %s\n\n",
 		events[0].Timestamp.Format(time.RFC3339),
 		events[len(events)-1].Timestamp.Format(time.RFC3339)))
 
-	// Get common attributes
+	// 获取公共属性
 	commonAttrs := make(map[string]string)
 	if len(events[0].Actor.Attributes) > 0 {
-		// Start with first event's attributes
+		// 以第一个事件的属性为初始值
 		maps.Copy(commonAttrs, events[0].Actor.Attributes)
 
-		// Keep only attributes that are the same across all events
+		// 仅保留所有事件中相同的属性
 		for _, event := range events[1:] {
 			for k, v := range commonAttrs {
 				if eventV, ok := event.Actor.Attributes[k]; !ok || eventV != v {
@@ -111,7 +113,7 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 	}
 
 	if len(commonAttrs) > 0 {
-		body.WriteString("Common attributes:\n")
+		body.WriteString("🔗 公共属性:\n")
 		keys := make([]string, 0, len(commonAttrs))
 		for key := range commonAttrs {
 			keys = append(keys, key)
@@ -123,7 +125,7 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 		body.WriteString("\n")
 	}
 
-	body.WriteString("Events:\n")
+	body.WriteString("📝 事件列表:\n")
 	for i, event := range events {
 		body.WriteString(fmt.Sprintf("  %d. [%s] %s %s",
 			i+1,
@@ -132,7 +134,7 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 			event.Action))
 
 		if event.Status != "" && event.Status != event.Action {
-			body.WriteString(fmt.Sprintf(" (status: %s)", event.Status))
+			body.WriteString(fmt.Sprintf(" (📋 状态: %s)", event.Status))
 		}
 		body.WriteString("\n")
 	}

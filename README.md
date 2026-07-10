@@ -5,28 +5,28 @@
   <h3 align="center">Docker Events</h3>
 </div>
 
-> Watch Docker events in real-time and dispatch rich notifications with a lightweight Go service.
+> 实时监控 Docker 事件，通过轻量级 Go 服务发送丰富的通知消息。
 
-This project uses docker system events and forwards meaningful summaries through configurable notification channels powered by [`nikoksr/notify`](https://github.com/nikoksr/notify). It is designed to be small, dependable, and easy to extend with new transports or event processing rules.
+本项目监听 Docker 系统事件，并通过 [`nikoksr/notify`](https://github.com/nikoksr/notify) 驱动的可配置通知渠道转发有价值的事件摘要。项目设计小巧、可靠，易于扩展新的传输方式或事件处理规则。
 
-## Features
+## 功能特性
 
-- [x] Real-time streaming of `docker system events` via a managed watcher
-- [x] Human-friendly notifications enriched with context (timestamp, actor attributes, status)
-- [x] Multi-channel delivery (Slack, Telegram, Discord, Teams) powered by `github.com/nikoksr/notify`
-- [x] Opt-in filtering by Docker event types and CLI filters
-- [x] Environment variable driven configuration with validation at startup
-- [x] Composable code structure (config, watcher, notifier) and unit tests for formatting helpers
+- [x] 通过托管的监听器实时流式接收 `docker system events`
+- [x] 包含上下文信息（时间戳、执行者属性、状态）的友好通知
+- [x] 多渠道投递（Slack、Telegram、Discord、Teams、企业微信、钉钉），由 `github.com/nikoksr/notify` 驱动
+- [x] 支持按 Docker 事件类型和 CLI 过滤器进行可选过滤
+- [x] 环境变量驱动的配置，启动时自动验证
+- [x] 可组合的代码结构（config、watcher、notifier）和格式化辅助函数的单元测试
 
-## Quick Start
+## 快速开始
 
-Prerequisites
+前置条件
 
 - Go 1.24+
-- Docker CLI with access to the target daemon
-- At least one notifications provider configured (Slack bot token + channel IDs, Telegram bot token + chat IDs, Discord bot token + channel IDs, Discord webhook URLs, or Microsoft Teams webhook URLs)
+- Docker CLI 并能访问目标 Docker 守护进程
+- 至少配置一个通知渠道（Slack bot token + 频道 ID、Telegram bot token + 聊天 ID、Discord bot token + 频道 ID、Discord webhook URL、Microsoft Teams webhook URL、企业微信 webhook URL 或钉钉 webhook URL）
 
-Clone & install dependencies
+克隆并安装依赖
 
 ```bash
 git clone https://github.com/filippofinke/docker-events.git
@@ -34,72 +34,74 @@ cd docker-events
 go mod tidy
 ```
 
-Configure environment
+配置环境
 
-1. Copy the example environment file:
+1. 复制示例环境文件：
 
 ```bash
 cp .env.example .env
 ```
 
-2. Update `.env` with your Slack token, target channels, and any optional Docker filters.
+2. 在 `.env` 中填写 Slack token、目标频道以及其他可选的 Docker 过滤器。
 
-Run locally
+本地运行
 
 ```bash
-# start the watcher (module-aware path)
+# 启动监听器（模块感知路径）
 go run ./cmd
 ```
 
-The service will stream logs to stdout and post notifications for matching Docker events. Stop with `Ctrl+C`.
+服务会将日志输出到标准输出，并为匹配的 Docker 事件发送通知。按 `Ctrl+C` 停止。
 
-## Configuration
+## 配置说明
 
-All settings are provided via environment variables (see `.env.example`). Key options:
+所有设置通过环境变量配置（参见 `.env.example`）。主要选项：
 
-- `SLACK_BOT_TOKEN`: Slack bot token used to authenticate the notifier.
-- `SLACK_CHANNEL_IDS`: Comma-separated list of Slack channel IDs (e.g. `C0123456,C0ABCDEF`).
-- `TELEGRAM_BOT_TOKEN`: Telegram bot token created with [BotFather](https://core.telegram.org/bots#6-botfather).
-- `TELEGRAM_CHAT_IDS`: Comma-separated list of chat IDs (negative values for group chats are supported).
-- `DISCORD_BOT_TOKEN`: Discord bot token generated from the Developer Portal.
-- `DISCORD_CHANNEL_IDS`: Comma-separated list of Discord channel IDs to notify.
-- `DISCORD_WEBHOOK_URLS`: Comma-separated list of Discord webhook URLs (recommended over bot tokens for simple notifications).
-- `TEAMS_WEBHOOK_URLS`: Comma-separated list of Microsoft Teams webhook URLs (uses Adaptive Cards).
-- `NOTIFY_SUBJECT_PREFIX`: Prefix for notification subjects (defaults to `Docker event`).
-- `MESSAGE_TEMPLATE`: Custom message template using Go template syntax (see [Message Customization](#message-customization) below).
-- `MESSAGE_LOG_LINES`: Number of container log lines to fetch for events (defaults to 0, disabled).
-- `EVENT_GROUP_WINDOW`: Time window for grouping events from the same container (e.g., `5s`, `10s`, `1m`). Events for the same container within this window will be grouped into a single notification. Set to `0` to disable grouping (defaults to `5s`).
-- `DOCKER_EVENT_FILTERS`: Comma-separated filters passed to `docker system events` (same syntax as the CLI `--filter` flag, e.g. `status=start,type=container`).
-- `DOCKER_EVENT_TYPES`: Comma-separated list of Docker event types to keep (e.g. `container,image,volume`).
+- `SLACK_BOT_TOKEN`: 用于通知器认证的 Slack bot token。
+- `SLACK_CHANNEL_IDS`: 逗号分隔的 Slack 频道 ID 列表（如 `C0123456,C0ABCDEF`）。
+- `TELEGRAM_BOT_TOKEN`: 通过 [BotFather](https://core.telegram.org/bots#6-botfather) 创建的 Telegram bot token。
+- `TELEGRAM_CHAT_IDS`: 逗号分隔的聊天 ID 列表（支持负数表示群聊）。
+- `DISCORD_BOT_TOKEN`: 从开发者门户生成的 Discord bot token。
+- `DISCORD_CHANNEL_IDS`: 逗号分隔的 Discord 频道 ID 列表。
+- `DISCORD_WEBHOOK_URLS`: 逗号分隔的 Discord webhook URL 列表（推荐用于简单通知，替代 bot token）。
+- `TEAMS_WEBHOOK_URLS`: 逗号分隔的 Microsoft Teams webhook URL 列表（使用 Adaptive Cards）。
+- `WECOM_WEBHOOK_URLS`: 逗号分隔的企业微信 webhook URL 列表。
+- `DINGTALK_WEBHOOK_URLS`: 逗号分隔的钉钉 webhook URL 列表。
+- `NOTIFY_SUBJECT_PREFIX`: 通知主题前缀（默认为 `Docker 事件`）。
+- `MESSAGE_TEMPLATE`: 使用 Go 模板语法的自定义消息模板（参见下方[消息自定义](#消息自定义)）。
+- `MESSAGE_LOG_LINES`: 为事件获取的容器日志行数（默认为 0，禁用）。
+- `EVENT_GROUP_WINDOW`: 同一容器事件分组的时间窗口（如 `5s`、`10s`、`1m`）。同一容器在此窗口内的事件将合并为一条通知。设为 `0` 禁用分组（默认 `5s`）。
+- `DOCKER_EVENT_FILTERS`: 传递给 `docker system events` 的逗号分隔过滤器（与 CLI `--filter` 参数语法相同，如 `status=start,type=container`）。
+- `DOCKER_EVENT_TYPES`: 逗号分隔的 Docker 事件类型列表（如 `container,image,volume`）。
 
-> **Security note:** Do not commit an `.env` file containing real tokens. Use `.env` locally or provide the variables through your orchestrator of choice.
+> **安全提示：** 请勿提交包含真实 token 的 `.env` 文件。请在本地使用 `.env` 或通过编排工具提供变量。
 
-## Docker Event Filters
+## Docker 事件过滤器
 
-The Docker CLI supports a rich set of filters that can be combined in `DOCKER_EVENT_FILTERS`. Supported filter keys include:
+Docker CLI 支持丰富的过滤器，可在 `DOCKER_EVENT_FILTERS` 中组合使用。支持的过滤键包括：
 
-- `config=<name or id>`
-- `container=<name or id>`
-- `daemon=<name or id>`
-- `event=<event action>`
-- `image=<repository or tag>`
-- `label=<key>` or `label=<key>=<value>`
-- `network=<name or id>`
-- `node=<id>`
-- `plugin=<name or id>`
-- `scope=<local or swarm>`
-- `secret=<name or id>`
-- `service=<name or id>`
+- `config=<名称或 ID>`
+- `container=<名称或 ID>`
+- `daemon=<名称或 ID>`
+- `event=<事件动作>`
+- `image=<仓库或标签>`
+- `label=<键>` 或 `label=<键>=<值>`
+- `network=<名称或 ID>`
+- `node=<ID>`
+- `plugin=<名称或 ID>`
+- `scope=<local 或 swarm>`
+- `secret=<名称或 ID>`
+- `service=<名称或 ID>`
 - `type=<container|image|volume|network|daemon|plugin|service|node|secret|config>`
-- `volume=<name>`
+- `volume=<名称>`
 
-Provide multiple filters by comma-separating entries (e.g. `DOCKER_EVENT_FILTERS=event=start,scope=swarm`); the service will translate each entry into an individual `--filter` flag for `docker system events`.
+通过逗号分隔多个过滤条目（如 `DOCKER_EVENT_FILTERS=event=start,scope=swarm`）；服务会将每个条目转换为 `docker system events` 的独立 `--filter` 参数。
 
-More details in the [Docker documentation](https://docs.docker.com/reference/cli/docker/system/events/#filter).
+更多详情请参阅 [Docker 文档](https://docs.docker.com/reference/cli/docker/system/events/#filter)。
 
-## Docker Event Types
+## Docker 事件类型
 
-`DOCKER_EVENT_TYPES` narrows processing to one or more top-level Docker object kinds. Valid values:
+`DOCKER_EVENT_TYPES` 用于限定处理的 Docker 对象类型。有效值：
 
 - `container`
 - `image`
@@ -112,59 +114,59 @@ More details in the [Docker documentation](https://docs.docker.com/reference/cli
 - `secret`
 - `config`
 
-Leave the variable empty to accept every event type from the stream.
+将该变量留空即可接受事件流中的所有类型。
 
-More details in the [Docker documentation](https://docs.docker.com/engine/reference/commandline/system_events/#object-types).
+更多详情请参阅 [Docker 文档](https://docs.docker.com/engine/reference/commandline/system_events/#object-types)。
 
-## Event Grouping
+## 事件分组
 
-To prevent notification spam when a container experiences multiple events in quick succession (e.g., during a restart: kill → stop → die → start → restart), docker-events can group events for the same container within a configurable time window.
+为防止容器在短时间内经历多个事件时产生通知轰炸（如重启期间：kill → stop → die → start → restart），docker-events 可以在可配置的时间窗口内将同一容器的事件分组。
 
-### How It Works
+### 工作原理
 
-When event grouping is enabled (default: 5 seconds), the service will:
+启用事件分组后（默认：5 秒），服务将：
 
-1. Collect all events for the same container within the time window
-2. Wait for the window to expire or for events from a different container
-3. Send a single grouped notification with all events instead of individual messages
+1. 收集同一容器在时间窗口内的所有事件
+2. 等待窗口过期或收到不同容器的事件
+3. 发送一条包含所有事件的分组通知，而非单独的消息
 
-### Configuration
+### 配置
 
-Set the `EVENT_GROUP_WINDOW` environment variable to control the grouping window:
+设置 `EVENT_GROUP_WINDOW` 环境变量来控制分组窗口：
 
 ```bash
-EVENT_GROUP_WINDOW=5s   # Default: group events within 5 seconds
-EVENT_GROUP_WINDOW=10s  # Group events within 10 seconds
-EVENT_GROUP_WINDOW=1m   # Group events within 1 minute
-EVENT_GROUP_WINDOW=0    # Disable grouping, send all events immediately
+EVENT_GROUP_WINDOW=5s   # 默认：5 秒内的事件分组
+EVENT_GROUP_WINDOW=10s  # 10 秒内的事件分组
+EVENT_GROUP_WINDOW=1m   # 1 分钟内的事件分组
+EVENT_GROUP_WINDOW=0    # 禁用分组，立即发送所有事件
 ```
 
-Valid time units: `ns`, `us` (or `µs`), `ms`, `s`, `m`, `h`
+有效时间单位：`ns`、`us`（或 `µs`）、`ms`、`s`、`m`、`h`
 
-### Grouped Notification Format
+### 分组通知格式
 
-When multiple events are grouped, the notification will include:
+多个事件被分组时，通知将包含：
 
-- Container ID and total event count
-- Time range (first to last event)
-- Common attributes shared across all events
-- List of all events with timestamps and actions
+- 容器 ID 和事件总数
+- 时间范围（第一个到最后一个事件）
+- 所有事件共享的公共属性
+- 所有事件列表及其时间戳和操作
 
-Example grouped notification:
+分组通知示例：
 
 ```
-Docker events: 5 events for container d23c731f32ba (die, kill, restart, start, stop)
+Docker 事件: 容器 d23c731f32ba 共 5 个事件 (die, kill, restart, start, stop)
 
-Container: d23c731f32ba41defa48b2804299e9378b84442857701b1d51b8e6aca77c35da
-Event count: 5
-Time range: 2025-10-09T08:10:58Z to 2025-10-09T08:10:59Z
+容器: d23c731f32ba41defa48b2804299e9378b84442857701b1d51b8e6aca77c35da
+事件数量: 5
+时间范围: 2025-10-09T08:10:58Z 至 2025-10-09T08:10:59Z
 
-Common attributes:
+公共属性:
   - com.docker.compose.project=myapp
   - com.docker.compose.service=web
   - image=nginx:latest
 
-Events:
+事件列表:
   1. [08:10:58] container kill
   2. [08:10:59] container stop
   3. [08:10:59] container die
@@ -172,192 +174,216 @@ Events:
   5. [08:10:59] container restart
 ```
 
-### Benefits
+### 优势
 
-- **Reduced notification spam**: Restart operations typically generate 5+ events, which are now grouped into one message
-- **Better context**: See all related events together with their timing
-- **Cleaner notification channels**: Fewer messages to scroll through
-- **Preserved details**: All event information is retained, just organized better
+- **减少通知轰炸**：重启操作通常会产生 5+ 个事件，现在合并为一条消息
+- **更好的上下文**：在同一消息中查看所有相关事件及其时间
+- **更整洁的通知渠道**：减少需要翻阅的消息
+- **保留完整信息**：所有事件信息均被保留，只是组织得更好
 
-### Behavior Notes
+### 行为说明
 
-- Single events are sent immediately (no grouping overhead)
-- Events for different containers are never grouped together
-- The timer resets each time a new event arrives for the same container
-- On shutdown, all pending grouped events are flushed immediately
-- **Custom templates are fully supported**: If you have a `MESSAGE_TEMPLATE` configured, it will be used for both single and grouped events. Use `{{.EventCount}}` and `{{.Events}}` in your template to handle grouped events differently.
+- 单个事件会立即发送（无分组开销）
+- 不同容器的事件永远不会被分组
+- 每当同一容器有新事件到达时，计时器会重置
+- 关闭时，所有待处理的分组事件会立即刷新
+- **完全支持自定义模板**：如果配置了 `MESSAGE_TEMPLATE`，它将同时用于单个和分组事件。在模板中使用 `{{.EventCount}}` 和 `{{.Events}}` 来区分处理分组事件。
 
-## Message Customization
+## 消息自定义
 
-By default, docker-events sends detailed notifications with all available event information. You can customize the message format using Go templates via the `MESSAGE_TEMPLATE` environment variable.
+默认情况下，docker-events 会发送包含所有可用事件信息的详细通知。你可以通过 `MESSAGE_TEMPLATE` 环境变量使用 Go 模板自定义消息格式。
 
-### Available Template Placeholders
+### 可用模板占位符
 
-- `{{.Type}}` - Event type (container, image, volume, network, etc.)
-- `{{.Action}}` - Event action (start, stop, create, destroy, etc.)
-- `{{.ID}}` - Full object ID
-- `{{.ShortID}}` - Short ID (first 12 characters)
-- `{{.Name}}` - Container/object name (extracted from attributes when available)
-- `{{.Status}}` - Event status
-- `{{.From}}` - From field (typically the image name for container events)
-- `{{.Time}}` - Event timestamp in RFC3339 format
-- `{{.Scope}}` - Event scope (local or swarm)
-- `{{.Actor.ID}}` - Actor ID
-- `{{.Attribute "key"}}` - Get specific attribute value by key
-- `{{.GetLogs}}` - Fetch container logs (requires `MESSAGE_LOG_LINES` > 0)
-- `{{.EventCount}}` - Number of events (returns 1 for single events, >1 for grouped events)
-- `{{.Events}}` - Array of all events (only available for grouped events; use with range)
+- `{{.Type}}` - 事件类型（container、image、volume、network 等）
+- `{{.Action}}` - 事件动作（start、stop、create、destroy 等）
+- `{{.ID}}` - 完整对象 ID
+- `{{.ShortID}}` - 短 ID（前 12 个字符）
+- `{{.Name}}` - 容器/对象名称（可用时从属性中提取）
+- `{{.Status}}` - 事件状态
+- `{{.From}}` - 来源字段（容器事件通常为镜像名称）
+- `{{.Time}}` - RFC3339 格式的事件时间戳
+- `{{.Scope}}` - 事件范围（local 或 swarm）
+- `{{.Actor.ID}}` - 执行者 ID
+- `{{.Attribute "key"}}` - 按键获取特定属性值
+- `{{.GetLogs}}` - 获取容器日志（需要 `MESSAGE_LOG_LINES` > 0）
+- `{{.EventCount}}` - 事件数量（单个事件返回 1，分组事件返回 >1）
+- `{{.Events}}` - 所有事件的数组（仅分组事件可用；配合 range 使用）
 
-**Note:** When events are grouped (multiple events for the same container), `{{.Type}}`, `{{.Action}}`, etc. refer to the first event in the group. Use `{{.Events}}` to access all events in the group.
+**注意：** 当事件被分组时（同一容器的多个事件），`{{.Type}}`、`{{.Action}}` 等引用的是分组中的第一个事件。使用 `{{.Events}}` 可以访问分组中的所有事件。
 
-### Template Examples
+### 模板示例
 
-**Simple notification:**
+**简单通知：**
 
 ```bash
-MESSAGE_TEMPLATE="Container {{.Name}} ({{.ShortID}}) {{.Action}} at {{.Time}}"
+MESSAGE_TEMPLATE="容器 {{.Name}} ({{.ShortID}}) {{.Action}} 时间: {{.Time}}"
 ```
 
-**With container logs:**
+**带容器日志：**
 
 ```bash
-MESSAGE_TEMPLATE="Container {{.Name}} {{.Action}}\nImage: {{.From}}\nLogs:\n{{.GetLogs}}"
+MESSAGE_TEMPLATE="容器 {{.Name}} {{.Action}}\n镜像: {{.From}}\n日志:\n{{.GetLogs}}"
 MESSAGE_LOG_LINES=20
 ```
 
-**Custom attributes:**
+**自定义属性：**
 
 ```bash
-MESSAGE_TEMPLATE="{{.Type}} {{.Action}}: {{.Name}}\nProject: {{.Attribute \"com.docker.compose.project\"}}\nService: {{.Attribute \"com.docker.compose.service\"}}"
+MESSAGE_TEMPLATE="{{.Type}} {{.Action}}: {{.Name}}\n项目: {{.Attribute \"com.docker.compose.project\"}}\n服务: {{.Attribute \"com.docker.compose.service\"}}"
 ```
 
-**Conditional formatting:**
+**条件格式化：**
 
 ```bash
-MESSAGE_TEMPLATE="{{.Type}} {{.Action}}: {{if .Name}}{{.Name}}{{else}}{{.ShortID}}{{end}}\nTime: {{.Time}}"
+MESSAGE_TEMPLATE="{{.Type}} {{.Action}}: {{if .Name}}{{.Name}}{{else}}{{.ShortID}}{{end}}\n时间: {{.Time}}"
 ```
 
-**Grouped events with custom template:**
+**分组事件 + 自定义模板：**
 
 ```bash
-MESSAGE_TEMPLATE="{{if gt .EventCount 1}}🔄 {{.EventCount}} events for {{.Name}} ({{.ShortID}})\n{{range .Events}}- [{{.Timestamp.Format \"15:04:05\"}}] {{.Action}}\n{{end}}{{else}}{{.Type}} {{.Action}}: {{.Name}}\nTime: {{.Time}}{{end}}"
+MESSAGE_TEMPLATE="{{if gt .EventCount 1}}🔄 {{.Name}} ({{.ShortID}}) 共 {{.EventCount}} 个事件\n{{range .Events}}- [{{.Timestamp.Format \"15:04:05\"}}] {{.Action}}\n{{end}}{{else}}{{.Type}} {{.Action}}: {{.Name}}\n时间: {{.Time}}{{end}}"
 EVENT_GROUP_WINDOW=5s
 ```
 
-**Grouped events with logs:**
+**分组事件 + 日志：**
 
 ```bash
-MESSAGE_TEMPLATE="Container: {{.Name}} ({{.ShortID}})\nEvents: {{.EventCount}}\n{{if gt .EventCount 1}}Actions: {{range .Events}}{{.Action}} {{end}}\n{{end}}{{if .GetLogs}}\nLogs:\n{{.GetLogs}}{{end}}"
+MESSAGE_TEMPLATE="容器: {{.Name}} ({{.ShortID}})\n事件数: {{.EventCount}}\n{{if gt .EventCount 1}}动作: {{range .Events}}{{.Action}} {{end}}\n{{end}}{{if .GetLogs}}\n日志:\n{{.GetLogs}}{{end}}"
 MESSAGE_LOG_LINES=20
 EVENT_GROUP_WINDOW=5s
 ```
 
-### Logs Configuration
+### 日志配置
 
-Set `MESSAGE_LOG_LINES` to fetch the last N lines of container logs when using `{{.GetLogs}}`:
+设置 `MESSAGE_LOG_LINES` 在使用 `{{.GetLogs}}` 时获取容器日志的最后 N 行：
 
 ```bash
-MESSAGE_LOG_LINES=10  # Fetch last 10 lines
-MESSAGE_LOG_LINES=50  # Fetch last 50 lines
-MESSAGE_LOG_LINES=0   # Disable log fetching (default)
+MESSAGE_LOG_LINES=10  # 获取最后 10 行
+MESSAGE_LOG_LINES=50  # 获取最后 50 行
+MESSAGE_LOG_LINES=0   # 禁用日志获取（默认）
 ```
 
-**Note:** Log fetching only works for container events and may add latency to notifications. Use reasonable line counts to avoid performance issues.
+**注意：** 日志获取仅对容器事件有效，可能会增加通知延迟。请使用合理的行数以避免性能问题。
 
-### Default Template
+### 默认模板
 
-If no custom template is provided, the default format includes:
+如果未配置自定义模板，默认格式如下：
 
 ```
-Time: <timestamp>
-Status: <status>
-From: <from>
-Scope: <scope>
-ID: <id>
-Actor: <actor_id>
+时间: <时间戳>
+状态: <状态>
+来源: <来源>
+范围: <范围>
+ID: <ID>
+执行者: <执行者ID>
 ```
 
-## Discord Webhooks vs Bots
+## Discord Webhook 与 Bot 的区别
 
-This project supports two methods for Discord notifications:
+本项目支持两种方式发送 Discord 通知：
 
-**Discord Webhooks (Recommended)**
+**Discord Webhook（推荐）**
 
-Discord webhooks are the simplest way to send notifications. They use HTTP POST requests and don't require a bot session or gateway connection.
+Discord webhook 是发送通知的最简单方式。它使用 HTTP POST 请求，无需 bot 会话或网关连接。
 
-Advantages:
+优势：
 
-- Simpler setup - just create a webhook in your Discord channel settings
-- No bot permissions or OAuth scopes needed
-- More efficient - uses plain HTTP instead of maintaining a WebSocket connection
-- Can send to multiple channels by providing multiple webhook URLs
+- 更简单的配置 - 只需在 Discord 频道设置中创建 webhook
+- 无需 bot 权限或 OAuth 作用域
+- 更高效 - 使用普通 HTTP 而非维护 WebSocket 连接
+- 可通过提供多个 webhook URL 发送到多个频道
 
-To create a Discord webhook:
+创建 Discord webhook 的步骤：
 
-1. Open your Discord server and go to the channel where you want notifications
-2. Click the gear icon (Edit Channel) next to the channel name
-3. Go to "Integrations" → "Webhooks" → "New Webhook"
-4. Copy the webhook URL and add it to `DISCORD_WEBHOOK_URLS`
+1. 打开 Discord 服务器，进入需要通知的频道
+2. 点击频道名称旁的齿轮图标（编辑频道）
+3. 进入 "Integrations" → "Webhooks" → "New Webhook"
+4. 复制 webhook URL 并添加到 `DISCORD_WEBHOOK_URLS`
 
-Example:
+示例：
 
 ```bash
 DISCORD_WEBHOOK_URLS=https://discord.com/api/webhooks/123456789/your-webhook-token
 ```
 
-**Discord Bot (Alternative)**
+**Discord Bot（替代方案）**
 
-Bot tokens can be used if you need more advanced features or already have a bot infrastructure. Configure with `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_IDS`.
+如果需要更高级的功能或已有 bot 基础设施，可以使用 bot token。通过 `DISCORD_BOT_TOKEN` 和 `DISCORD_CHANNEL_IDS` 配置。
 
-You can also use both webhooks and bot tokens simultaneously if needed.
+也可以同时使用 webhook 和 bot token。
 
-## Microsoft Teams Webhooks
+## Microsoft Teams Webhook
 
-Microsoft Teams supports incoming webhooks that can receive notifications. This project sends notifications to Teams using **Adaptive Cards** (version 1.4).
+Microsoft Teams 支持接收通知的 incoming webhook。本项目使用 **Adaptive Cards**（1.4 版）向 Teams 发送通知。
 
-To create a Teams webhook (using Workflows / Power Automate):
-1. In Microsoft Teams, go to the channel where you want to add the webhook and select **Workflows** (or **Integrations**).
-2. Search for **Post to a channel when a webhook request is received** and select it.
-3. Choose the team and channel, then add the workflow.
-4. Copy the generated webhook URL and add it to `TEAMS_WEBHOOK_URLS` in your `.env` file:
+创建 Teams webhook 的步骤（使用 Workflows / Power Automate）：
+1. 在 Microsoft Teams 中，进入要添加 webhook 的频道，选择 **Workflows**（或 **Integrations**）。
+2. 搜索 **Post to a channel when a webhook request is received** 并选择。
+3. 选择团队和频道，然后添加工作流。
+4. 复制生成的 webhook URL 并添加到 `.env` 文件中的 `TEAMS_WEBHOOK_URLS`：
    ```bash
    TEAMS_WEBHOOK_URLS=https://your-tenant.webhook.office.com/webhookb2/your-webhook-token
    ```
 
-## Extending Notifications
+## 企业微信 Webhook
 
-`internal/notifier` wraps `github.com/nikoksr/notify`, so adding more destinations is straightforward:
+企业微信支持通过群机器人 webhook 接收通知。本项目使用 markdown 消息格式发送通知。
 
-1. Import the desired service package (e.g. `github.com/nikoksr/notify/service/telegram`).
-2. Create a service instance in `Setup` based on new configuration.
-3. Register it with the shared notifier (`n.client.UseServices(service)`).
+配置方式：在 `.env` 文件中添加企业微信 webhook URL：
 
-## Running Tests
+```bash
+WECOM_WEBHOOK_URLS=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=your-key
+```
+
+支持配置多个 webhook URL（逗号分隔）。
+
+## 钉钉 Webhook
+
+钉钉支持通过群机器人 webhook 接收通知。本项目使用 markdown 消息格式发送通知。
+
+配置方式：在 `.env` 文件中添加钉钉 webhook URL：
+
+```bash
+DINGTALK_WEBHOOK_URLS=https://oapi.dingtalk.com/robot/send?access_token=your-token
+```
+
+支持配置多个 webhook URL（逗号分隔）。
+
+## 扩展通知渠道
+
+`internal/notifier` 封装了 `github.com/nikoksr/notify`，因此添加新的通知目标非常简单：
+
+1. 导入所需的服务包（如 `github.com/nikoksr/notify/service/telegram`）。
+2. 在 `Setup` 中基于新配置创建服务实例。
+3. 注册到共享通知器（`n.client.UseServices(service)`）。
+
+## 运行测试
 
 ```bash
 go test ./...
 ```
 
-## Docker Usage
+## Docker 使用
 
-A minimal container image can be built with:
+可以通过以下命令构建最小化的容器镜像：
 
 ```bash
-# build the Go binary locally and package it into a container image
+# 在本地编译 Go 二进制文件并打包为容器镜像
 docker build -t docker-events:latest .
 ```
 
-The included `Dockerfile` uses a multi-stage build: it compiles a static Go binary in a Go builder image and copies it into the official Docker CLI image so the binary can call `docker` if needed.
+包含的 `Dockerfile` 使用多阶段构建：在 Go 构建器镜像中编译静态 Go 二进制文件，然后复制到官方 Docker CLI 镜像中，以便二进制文件在需要时可以调用 `docker`。
 
-Important runtime considerations:
+重要的运行时注意事项：
 
-- The service talks to the Docker daemon. In most deployments you should mount the host Docker socket into the container so the service can observe events:
+- 服务需要与 Docker 守护进程通信。在大多数部署中，你需要将宿主机的 Docker socket 挂载到容器中，以便服务可以监听事件：
 
-  - `/var/run/docker.sock:/var/run/docker.sock:ro` (read-only mount used in the example compose file)
+  - `/var/run/docker.sock:/var/run/docker.sock:ro`（只读挂载，参见示例 compose 文件）
 
-- Environment variables are used for configuration. The repository contains a `.env.example`—copy it to `.env` and set your provider tokens and channels. Do not commit `.env` with real secrets.
+- 使用环境变量进行配置。仓库包含 `.env.example` 文件——将其复制为 `.env` 并设置你的通知渠道 token 和频道。请勿提交包含真实密钥的 `.env`。
 
-Compose example (loads `.env` automatically)
+Compose 示例（自动加载 `.env`）
 
 ```yaml
 services:
@@ -370,31 +396,31 @@ services:
     restart: unless-stopped
 ```
 
-Start with docker-compose:
+使用 docker-compose 启动：
 
 ```bash
-# ensure .env exists in the project root (copy from .env.example)
+# 确保 .env 存在于项目根目录（从 .env.example 复制）
 cp .env.example .env
-# build & start in background
+# 构建并在后台启动
 docker compose up -d --build
-# view logs
+# 查看日志
 docker compose logs -f docker-events
 ```
 
-If you prefer to run the image directly:
+如果希望直接运行镜像：
 
 ```bash
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --env-file .env filippofinke/docker-events:latest
 ```
 
-Remember: by default Docker Compose loads a top-level `.env` file. The `env_file` entry above is explicit and can be used by other tools that also support `env_file`.
+提示：默认情况下 Docker Compose 会加载顶层 `.env` 文件。上面的 `env_file` 条目是显式指定的，也可被其他支持 `env_file` 的工具使用。
 
-## Author
+## 作者
 
 👤 **Filippo Finke**
 
-- Website: [https://filippofinke.ch](https://filippofinke.ch)
+- 网站: [https://filippofinke.ch](https://filippofinke.ch)
 - Twitter: [@filippofinke](https://twitter.com/filippofinke)
 - GitHub: [@filippofinke](https://github.com/filippofinke)
 - LinkedIn: [@filippofinke](https://linkedin.com/in/filippofinke)

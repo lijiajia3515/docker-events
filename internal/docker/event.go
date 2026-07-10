@@ -6,6 +6,16 @@ import (
 	"github.com/docker/docker/api/types/events"
 )
 
+// chinaTZ 中国时区（Asia/Shanghai, UTC+8）
+var chinaTZ = func() *time.Location {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		// 回退到固定偏移量 UTC+8
+		loc = time.FixedZone("CST", 8*3600)
+	}
+	return loc
+}()
+
 type Event struct {
 	ID        string
 	Status    string
@@ -31,6 +41,9 @@ func convertMessage(msg events.Message) Event {
 	if msg.TimeNano == 0 && msg.Time != 0 {
 		timestamp = time.Unix(msg.Time, 0)
 	}
+
+	// 统一转换为中国时区
+	timestamp = timestamp.In(chinaTZ)
 
 	return Event{
 		ID:     msg.ID,

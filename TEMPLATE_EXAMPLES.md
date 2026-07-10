@@ -1,45 +1,45 @@
-# Example configurations for MESSAGE_TEMPLATE
+# MESSAGE_TEMPLATE 配置示例
 
-# 1. Simple format with container name and action
+# 1. 简单格式 - 显示容器名称和动作
 
-MESSAGE_TEMPLATE="Container {{.Name}} {{.Action}}"
+MESSAGE_TEMPLATE="容器 {{.Name}} {{.Action}}"
 
-# Output: Container my-app-1 start
+# 输出: 容器 my-app-1 start
 
-# 2. With timestamp and short ID
+# 2. 带时间戳和短 ID
 
 MESSAGE_TEMPLATE="[{{.Time}}] {{.Type}} {{.Action}}: {{.Name}} ({{.ShortID}})"
 
-# Output: [2025-10-09T07:37:05Z] container start: my-app-1 (cd280ca744b1)
+# 输出: [2025-10-09T07:37:05Z] container start: my-app-1 (cd280ca744b1)
 
-# 3. Detailed format with image and attributes
+# 3. 详细格式 - 显示镜像和属性
 
-MESSAGE_TEMPLATE="Container: {{.Name}}\nAction: {{.Action}}\nImage: {{.From}}\nProject: {{.Attribute \"com.docker.compose.project\"}}\nTime: {{.Time}}"
+MESSAGE_TEMPLATE="容器: {{.Name}}\n动作: {{.Action}}\n镜像: {{.From}}\n项目: {{.Attribute \"com.docker.compose.project\"}}\n时间: {{.Time}}"
 
-# Output:
+# 输出:
 
-# Container: my-app-1
+# 容器: my-app-1
 
-# Action: start
+# 动作: start
 
-# Image: my-app-image
+# 镜像: my-app-image
 
-# Project: my-project
+# 项目: my-project
 
-# Time: 2025-10-09T07:37:05Z
+# 时间: 2025-10-09T07:37:05Z
 
-# 4. With container logs (last 20 lines)
+# 4. 带容器日志（最近 20 行）
 
-MESSAGE_TEMPLATE="Container {{.Name}} {{.Action}}\n\nLogs:\n{{.GetLogs}}"
+MESSAGE_TEMPLATE="容器 {{.Name}} {{.Action}}\n\n日志:\n{{.GetLogs}}"
 MESSAGE_LOG_LINES=20
 
-# Output:
+# 输出:
 
-# Container my-app-1 start
+# 容器 my-app-1 start
 
 #
 
-# Logs:
+# 日志:
 
 # [2025-10-09 07:37:05] Application starting...
 
@@ -47,69 +47,69 @@ MESSAGE_LOG_LINES=20
 
 # ...
 
-# 5. Minimal format
+# 5. 极简格式
 
 MESSAGE_TEMPLATE="{{.Type}}/{{.Action}}: {{if .Name}}{{.Name}}{{else}}{{.ShortID}}{{end}}"
 
-# Output: container/start: my-app-1
+# 输出: container/start: my-app-1
 
-# 6. Slack/Discord friendly format with emojis
+# 6. Slack/Discord 友好格式（带表情符号）
 
-MESSAGE_TEMPLATE="🐳 {{.Type}} {{.Action}}\n📦 **Container:** {{.Name}}\n🖼️ **Image:** {{.From}}\n⏰ **Time:** {{.Time}}"
+MESSAGE_TEMPLATE="🐳 {{.Type}} {{.Action}}\n📦 **容器:** {{.Name}}\n🖼️ **镜像:** {{.From}}\n⏰ **时间:** {{.Time}}"
 
-# Output:
+# 输出:
 
 # 🐳 container start
 
-# 📦 **Container:** my-app-1
+# 📦 **容器:** my-app-1
 
-# 🖼️ **Image:** my-app-image
+# 🖼️ **镜像:** my-app-image
 
-# ⏰ **Time:** 2025-10-09T07:37:05Z
+# ⏰ **时间:** 2025-10-09T07:37:05Z
 
-# 7. Conditional format (shows name if available, otherwise short ID)
+# 7. 条件格式（有名称时显示名称，否则显示短 ID）
 
 MESSAGE_TEMPLATE="{{if .Name}}{{.Name}}{{else}}{{.ShortID}}{{end}} - {{.Action}} ({{.Status}})"
 
-# Output: my-app-1 - start (start)
+# 输出: my-app-1 - start (start)
 
-# 8. Full details with logs for troubleshooting
+# 8. 完整详情 + 日志（用于故障排查）
 
-MESSAGE_TEMPLATE="Event: {{.Type}}/{{.Action}}\nContainer: {{.Name}} ({{.ShortID}})\nImage: {{.From}}\nStatus: {{.Status}}\nTime: {{.Time}}\n\nRecent Logs:\n{{.GetLogs}}"
+MESSAGE_TEMPLATE="事件: {{.Type}}/{{.Action}}\n容器: {{.Name}} ({{.ShortID}})\n镜像: {{.From}}\n状态: {{.Status}}\n时间: {{.Time}}\n\n最近日志:\n{{.GetLogs}}"
 MESSAGE_LOG_LINES=50
 
-# Output:
+# 输出:
 
-# Event: container/start
+# 事件: container/start
 
-# Container: my-app-1 (cd280ca744b1)
+# 容器: my-app-1 (cd280ca744b1)
 
-# Image: my-app-image
+# 镜像: my-app-image
 
-# Status: start
+# 状态: start
 
-# Time: 2025-10-09T07:37:05Z
+# 时间: 2025-10-09T07:37:05Z
 
 #
 
-# Recent Logs:
+# 最近日志:
 
-# [log lines...]
+# [日志内容...]
 
-# 9. Alert style for monitoring
+# 9. 告警风格（用于监控）
 
-MESSAGE_TEMPLATE="⚠️ ALERT: Container {{.Name}} has {{.Action}}\nTimestamp: {{.Time}}\nID: {{.ShortID}}"
+MESSAGE_TEMPLATE="⚠️ 告警: 容器 {{.Name}} 已 {{.Action}}\n时间戳: {{.Time}}\nID: {{.ShortID}}"
 
-# Output:
+# 输出:
 
-# ⚠️ ALERT: Container my-app-1 has stop
+# ⚠️ 告警: 容器 my-app-1 已 stop
 
-# Timestamp: 2025-10-09T07:37:05Z
+# 时间戳: 2025-10-09T07:37:05Z
 
 # ID: cd280ca744b1
 
-# 10. JSON-like format
+# 10. 类 JSON 格式
 
 MESSAGE_TEMPLATE="{\"type\": \"{{.Type}}\", \"action\": \"{{.Action}}\", \"name\": \"{{.Name}}\", \"time\": \"{{.Time}}\"}"
 
-# Output: {"type": "container", "action": "start", "name": "my-app-1", "time": "2025-10-09T07:37:05Z"}
+# 输出: {"type": "container", "action": "start", "name": "my-app-1", "time": "2025-10-09T07:37:05Z"}

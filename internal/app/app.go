@@ -17,20 +17,20 @@ func Run(ctx context.Context, logOut io.Writer) error {
 
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("load configuration", "error", err)
-		return fmt.Errorf("load config: %w", err)
+		logger.Error("加载配置失败", "error", err)
+		return fmt.Errorf("加载配置失败: %w", err)
 	}
 
 	n := notifier.NewNotifier(logger)
 	if err := n.Setup(cfg); err != nil {
-		logger.Error("configure notifier", "error", err)
-		return fmt.Errorf("setup notifier: %w", err)
+		logger.Error("配置通知器失败", "error", err)
+		return fmt.Errorf("初始化通知器失败: %w", err)
 	}
 
-	watcher, err := docker.NewWatcher(cfg.DockerFilters, cfg.DockerEventType, logger)
+	watcher, err := docker.NewWatcher(cfg.DockerFilters, cfg.DockerEventTypes, logger)
 	if err != nil {
-		logger.Error("create docker watcher", "error", err)
-		return fmt.Errorf("create watcher: %w", err)
+		logger.Error("创建 Docker 监听器失败", "error", err)
+		return fmt.Errorf("创建监听器失败: %w", err)
 	}
 
 	n.SetDockerClient(watcher.Client())
@@ -38,7 +38,7 @@ func Run(ctx context.Context, logOut io.Writer) error {
 	grouper := notifier.NewEventGrouper(n, cfg)
 	defer grouper.Shutdown()
 
-	logger.Info("starting docker events watcher", "filters", cfg.DockerFilters, "types", cfg.DockerEventType)
+	logger.Info("启动 Docker 事件监听器", "filters", cfg.DockerFilters, "types", cfg.DockerEventTypes)
 
 	err = watcher.Watch(ctx, func(ctx context.Context, event docker.Event) error {
 		attrs := make([]any, 0, 10)
@@ -47,16 +47,16 @@ func Run(ctx context.Context, logOut io.Writer) error {
 			attrs = append(attrs, "actor", event.Actor.ID)
 		}
 		attrs = append(attrs, "timestamp", event.Timestamp.Format("2006-01-02T15:04:05Z07:00"))
-		logger.Info("docker event", attrs...)
+		logger.Info("Docker 事件", attrs...)
 		return grouper.HandleEvent(ctx, event)
 	})
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			logger.Info("docker events watcher stopped", "reason", "context cancelled")
+			logger.Info("Docker 事件监听器已停止", "原因", "上下文已取消")
 			return nil
 		}
-		logger.Error("watch docker events", "error", err)
+		logger.Error("监听 Docker 事件失败", "error", err)
 		return err
 	}
 

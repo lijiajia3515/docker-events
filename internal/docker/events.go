@@ -19,7 +19,7 @@ type Watcher struct {
 func NewWatcher(filtersList, eventTypes []string, logger *slog.Logger) (*Watcher, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return nil, fmt.Errorf("create docker client: %w", err)
+		return nil, fmt.Errorf("创建 Docker 客户端失败: %w", err)
 	}
 
 	filterArgs, err := buildFilterArgs(filtersList, eventTypes)
@@ -56,7 +56,7 @@ func (w *Watcher) Watch(ctx context.Context, handle func(context.Context, Event)
 				continue
 			}
 			if err != nil {
-				return fmt.Errorf("docker events stream: %w", err)
+				return fmt.Errorf("Docker 事件流错误: %w", err)
 			}
 		case msg, ok := <-eventsCh:
 			if !ok {
@@ -65,7 +65,7 @@ func (w *Watcher) Watch(ctx context.Context, handle func(context.Context, Event)
 			}
 			event := convertMessage(msg)
 			if err := handle(ctx, event); err != nil {
-				w.logger.Error("handle docker event", "error", err, "type", event.Type, "action", event.Action, "id", event.ID)
+				w.logger.Error("处理 Docker 事件失败", "error", err, "type", event.Type, "action", event.Action, "id", event.ID)
 			}
 		}
 	}

@@ -42,30 +42,42 @@ func (n *notifierImpl) SetDockerClient(cli *dockerclient.Client) {
 
 func (n *notifierImpl) Setup(cfg *config.Config) error {
 	if cfg == nil {
-		return fmt.Errorf("nil config")
+		return fmt.Errorf("配置为空")
 	}
 
 	if cfg.Slack.Enabled {
 		if err := n.addSlack(cfg.Slack); err != nil {
-			return fmt.Errorf("setup slack: %w", err)
+			return fmt.Errorf("初始化 Slack 失败: %w", err)
 		}
 	}
 
 	if cfg.Telegram.Enabled {
 		if err := n.addTelegram(cfg.Telegram); err != nil {
-			return fmt.Errorf("setup telegram: %w", err)
+			return fmt.Errorf("初始化 Telegram 失败: %w", err)
 		}
 	}
 
 	if cfg.Discord.Enabled {
 		if err := n.addDiscord(cfg.Discord); err != nil {
-			return fmt.Errorf("setup discord: %w", err)
+			return fmt.Errorf("初始化 Discord 失败: %w", err)
 		}
 	}
 
 	if cfg.Teams.Enabled {
 		if err := n.addTeams(cfg.Teams); err != nil {
-			return fmt.Errorf("setup teams: %w", err)
+			return fmt.Errorf("初始化 Teams 失败: %w", err)
+		}
+	}
+
+	if cfg.WeChatWork.Enabled {
+		if err := n.addWeChatWork(cfg.WeChatWork); err != nil {
+			return fmt.Errorf("初始化企业微信失败: %w", err)
+		}
+	}
+
+	if cfg.DingTalk.Enabled {
+		if err := n.addDingTalk(cfg.DingTalk); err != nil {
+			return fmt.Errorf("初始化钉钉失败: %w", err)
 		}
 	}
 
@@ -74,7 +86,7 @@ func (n *notifierImpl) Setup(cfg *config.Config) error {
 
 func (n *notifierImpl) NotifyEvent(ctx context.Context, cfg *config.Config, event docker.Event) error {
 	if cfg == nil {
-		return fmt.Errorf("nil config")
+		return fmt.Errorf("配置为空")
 	}
 
 	var subject, body string
@@ -83,7 +95,7 @@ func (n *notifierImpl) NotifyEvent(ctx context.Context, cfg *config.Config, even
 	if cfg.MessageTemplate != "" {
 		body, _, err = formatEventWithTemplate(cfg.MessageTemplate, event, n.dockerCli, cfg.LogLines)
 		if err != nil {
-			n.logger.Warn("failed to format event with template, falling back to default format", "error", err)
+			n.logger.Warn("使用模板格式化事件失败，回退到默认格式", "error", err)
 			subject, body = formatEvent(cfg.NotifySubject, event)
 		} else {
 			subject = fmt.Sprintf("%s: %s %s", cfg.NotifySubject, event.Type, event.Action)
@@ -93,14 +105,14 @@ func (n *notifierImpl) NotifyEvent(ctx context.Context, cfg *config.Config, even
 	}
 
 	if err := n.client.Send(ctx, subject, body); err != nil {
-		return fmt.Errorf("send notification: %w", err)
+		return fmt.Errorf("发送通知失败: %w", err)
 	}
 	return nil
 }
 
 func (n *notifierImpl) NotifyGroupedEvents(ctx context.Context, cfg *config.Config, events []docker.Event) error {
 	if cfg == nil {
-		return fmt.Errorf("nil config")
+		return fmt.Errorf("配置为空")
 	}
 
 	if len(events) == 0 {
@@ -117,10 +129,10 @@ func (n *notifierImpl) NotifyGroupedEvents(ctx context.Context, cfg *config.Conf
 	if cfg.MessageTemplate != "" {
 		body, _, err = formatGroupedEventsWithTemplate(cfg.MessageTemplate, events, n.dockerCli, cfg.LogLines)
 		if err != nil {
-			n.logger.Warn("failed to format grouped events with template, falling back to default format", "error", err)
+			n.logger.Warn("使用模板格式化分组事件失败，回退到默认格式", "error", err)
 			subject, body = formatGroupedEvents(cfg.NotifySubject, events)
 		} else {
-			// Create subject from event actions
+			// 从事件操作中生成主题
 			actions := make(map[string]bool)
 			for _, event := range events {
 				actions[event.Action] = true
@@ -130,14 +142,14 @@ func (n *notifierImpl) NotifyGroupedEvents(ctx context.Context, cfg *config.Conf
 				actionList = append(actionList, action)
 			}
 			sort.Strings(actionList)
-			subject = fmt.Sprintf("%s: %d events (%s)", cfg.NotifySubject, len(events), strings.Join(actionList, ", "))
+			subject = fmt.Sprintf("%s: %d 个事件 (%s)", cfg.NotifySubject, len(events), strings.Join(actionList, ", "))
 		}
 	} else {
 		subject, body = formatGroupedEvents(cfg.NotifySubject, events)
 	}
 
 	if err := n.client.Send(ctx, subject, body); err != nil {
-		return fmt.Errorf("send grouped notification: %w", err)
+		return fmt.Errorf("发送分组通知失败: %w", err)
 	}
 	return nil
 }

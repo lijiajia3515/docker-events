@@ -10,13 +10,13 @@ import (
 )
 
 const (
-	defaultSubjectPrefix   = "Docker event"
-	defaultMessageTemplate = `Time: {{.Time}}
-Status: {{.Status}}
-From: {{.From}}
-Scope: {{.Scope}}
-ID: {{.ID}}
-Actor: {{.Actor.ID}}`
+	defaultSubjectPrefix   = "Docker 事件"
+	defaultMessageTemplate = `🕐 时间: {{.Time}}
+📋 状态: {{.Status}}
+📦 来源: {{.From}}
+🌐 范围: {{.Scope}}
+🔖 ID: {{.ID}}
+👤 执行者: {{.Actor.ID}}`
 	defaultLogLines = 0
 )
 
@@ -25,16 +25,16 @@ func Load() (*Config, error) {
 	if logLinesStr := os.Getenv("MESSAGE_LOG_LINES"); logLinesStr != "" {
 		parsed, err := strconv.Atoi(logLinesStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid MESSAGE_LOG_LINES value %q: %w", logLinesStr, err)
+			return nil, fmt.Errorf("无效的 MESSAGE_LOG_LINES 值 %q: %w", logLinesStr, err)
 		}
 		logLines = parsed
 	}
 
 	cfg := &Config{
 		DockerFilters:    parseFilters(os.Getenv("DOCKER_EVENT_FILTERS")),
-		DockerEventType:  parseEventTypes(os.Getenv("DOCKER_EVENT_TYPE")),
-		NotifySubject:    getEnvOrDefault("NOTIFY_SUBJECT", "Docker Event"),
-		MessageTemplate:  os.Getenv("MESSAGE_TEMPLATE"),
+		DockerEventTypes: parseEventTypes(os.Getenv("DOCKER_EVENT_TYPES")),
+		NotifySubject:    unescapeNewlines(getEnvOrDefault("NOTIFY_SUBJECT", "Docker 事件")),
+		MessageTemplate:  unescapeNewlines(os.Getenv("MESSAGE_TEMPLATE")),
 		LogLines:         logLines,
 		EventGroupWindow: parseGroupWindow(os.Getenv("EVENT_GROUP_WINDOW")),
 	}
@@ -43,7 +43,7 @@ func Load() (*Config, error) {
 	if ok && slackToken != "" {
 		slackChannels := splitAndTrim(os.Getenv("SLACK_CHANNEL_IDS"))
 		if len(slackChannels) == 0 {
-			return nil, errors.New("slack configured but SLACK_CHANNEL_IDS is empty")
+			return nil, errors.New("已配置 Slack 但 SLACK_CHANNEL_IDS 为空")
 		}
 
 		cfg.Slack = SlackConfig{
@@ -57,14 +57,14 @@ func Load() (*Config, error) {
 	if ok && telegramToken != "" {
 		rawChatIDs := splitAndTrim(os.Getenv("TELEGRAM_CHAT_IDS"))
 		if len(rawChatIDs) == 0 {
-			return nil, errors.New("telegram configured but TELEGRAM_CHAT_IDS is empty")
+			return nil, errors.New("已配置 Telegram 但 TELEGRAM_CHAT_IDS 为空")
 		}
 
 		chatIDs := make([]int64, 0, len(rawChatIDs))
 		for _, rawID := range rawChatIDs {
 			chatID, err := strconv.ParseInt(rawID, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("invalid TELEGRAM_CHAT_IDS value %q: %w", rawID, err)
+				return nil, fmt.Errorf("无效的 TELEGRAM_CHAT_IDS 值 %q: %w", rawID, err)
 			}
 			chatIDs = append(chatIDs, chatID)
 		}
@@ -80,7 +80,7 @@ func Load() (*Config, error) {
 	if ok && discordToken != "" {
 		discordChannels := splitAndTrim(os.Getenv("DISCORD_CHANNEL_IDS"))
 		if len(discordChannels) == 0 {
-			return nil, errors.New("discord bot configured but DISCORD_CHANNEL_IDS is empty")
+			return nil, errors.New("已配置 Discord Bot 但 DISCORD_CHANNEL_IDS 为空")
 		}
 
 		cfg.Discord = DiscordConfig{
@@ -107,6 +107,22 @@ func Load() (*Config, error) {
 		cfg.Teams = TeamsConfig{
 			Enabled:     true,
 			WebhookURLs: teamsWebhooks,
+		}
+	}
+
+	wecomWebhooks := splitAndTrim(os.Getenv("WECOM_WEBHOOK_URLS"))
+	if len(wecomWebhooks) > 0 {
+		cfg.WeChatWork = WeChatWorkConfig{
+			Enabled:     true,
+			WebhookURLs: wecomWebhooks,
+		}
+	}
+
+	dingtalkWebhooks := splitAndTrim(os.Getenv("DINGTALK_WEBHOOK_URLS"))
+	if len(dingtalkWebhooks) > 0 {
+		cfg.DingTalk = DingTalkConfig{
+			Enabled:     true,
+			WebhookURLs: dingtalkWebhooks,
 		}
 	}
 
@@ -145,6 +161,10 @@ func getEnvOrDefault(key, fallback string) string {
 	}
 
 	return fallback
+}
+
+func unescapeNewlines(s string) string {
+	return strings.ReplaceAll(s, `\n`, "\n")
 }
 
 func splitAndTrim(raw string) []string {

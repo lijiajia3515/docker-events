@@ -27,7 +27,7 @@ type templateData struct {
 	isGrouped   bool
 }
 
-// EventCount returns the number of events (for grouped events)
+// EventCount 返回事件数量（用于分组事件）
 func (t *templateData) EventCount() int {
 	if t.isGrouped {
 		return len(t.Events)
@@ -35,42 +35,42 @@ func (t *templateData) EventCount() int {
 	return 1
 }
 
-// Type returns the event type
+// Type 返回事件类型
 func (t *templateData) Type() string {
 	return t.Event.Type
 }
 
-// Action returns the event action
+// Action 返回事件动作
 func (t *templateData) Action() string {
 	return t.Event.Action
 }
 
-// ID returns the full ID
+// ID 返回完整 ID
 func (t *templateData) ID() string {
 	return t.Event.ID
 }
 
-// Status returns the event status
+// Status 返回事件状态
 func (t *templateData) Status() string {
 	return t.Event.Status
 }
 
-// From returns the event from field
+// From 返回事件来源字段
 func (t *templateData) From() string {
 	return t.Event.From
 }
 
-// Scope returns the event scope
+// Scope 返回事件范围
 func (t *templateData) Scope() string {
 	return t.Event.Scope
 }
 
-// Actor returns the actor
+// Actor 返回执行者
 func (t *templateData) Actor() docker.Actor {
 	return t.Event.Actor
 }
 
-// Attribute returns a specific attribute value
+// Attribute 返回特定属性值
 func (t *templateData) Attribute(key string) string {
 	if t.Event.Actor.Attributes != nil {
 		return t.Event.Actor.Attributes[key]
@@ -78,7 +78,7 @@ func (t *templateData) Attribute(key string) string {
 	return ""
 }
 
-// GetLogs fetches container logs if available
+// GetLogs 获取容器日志（如果可用）
 func (t *templateData) GetLogs() string {
 	if t.Logs != "" {
 		return t.Logs
@@ -99,7 +99,7 @@ func (t *templateData) GetLogs() string {
 
 	logs, err := t.dockerCli.ContainerLogs(ctx, t.containerID, options)
 	if err != nil {
-		return fmt.Sprintf("[error fetching logs: %v]", err)
+		return fmt.Sprintf("[获取日志失败: %v]", err)
 	}
 	defer logs.Close()
 
@@ -111,7 +111,7 @@ func (t *templateData) GetLogs() string {
 }
 
 func formatEventWithTemplate(tmplStr string, event docker.Event, dockerCli *client.Client, logLines int) (string, string, error) {
-	// Extract container name from attributes
+	// 从属性中提取容器名称
 	containerName := ""
 	containerID := ""
 
@@ -122,7 +122,7 @@ func formatEventWithTemplate(tmplStr string, event docker.Event, dockerCli *clie
 		containerID = event.Actor.ID
 	}
 
-	// Create short ID (first 12 characters)
+	// 创建短 ID（前12个字符）
 	shortID := event.ID
 	if len(shortID) > 12 {
 		shortID = shortID[:12]
@@ -138,16 +138,16 @@ func formatEventWithTemplate(tmplStr string, event docker.Event, dockerCli *clie
 		dockerCli:   dockerCli,
 	}
 
-	// Parse template
+	// 解析模板
 	tmpl, err := template.New("message").Parse(tmplStr)
 	if err != nil {
-		return "", "", fmt.Errorf("parse template: %w", err)
+		return "", "", fmt.Errorf("解析模板失败: %w", err)
 	}
 
-	// Execute template
+	// 执行模板
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", "", fmt.Errorf("execute template: %w", err)
+		return "", "", fmt.Errorf("执行模板失败: %w", err)
 	}
 
 	return strings.TrimSpace(buf.String()), "", nil
@@ -155,17 +155,17 @@ func formatEventWithTemplate(tmplStr string, event docker.Event, dockerCli *clie
 
 func formatGroupedEventsWithTemplate(tmplStr string, events []docker.Event, dockerCli *client.Client, logLines int) (string, string, error) {
 	if len(events) == 0 {
-		return "", "", fmt.Errorf("no events to format")
+		return "", "", fmt.Errorf("没有可格式化的事件")
 	}
 
 	if len(events) == 1 {
 		return formatEventWithTemplate(tmplStr, events[0], dockerCli, logLines)
 	}
 
-	// Use the first event as the primary event for template data
+	// 使用第一个事件作为模板数据的主事件
 	firstEvent := events[0]
 
-	// Extract container name from attributes
+	// 从属性中提取容器名称
 	containerName := ""
 	containerID := ""
 
@@ -176,7 +176,7 @@ func formatGroupedEventsWithTemplate(tmplStr string, events []docker.Event, dock
 		containerID = firstEvent.Actor.ID
 	}
 
-	// Create short ID (first 12 characters)
+	// 创建短 ID（前12个字符）
 	shortID := firstEvent.ID
 	if len(shortID) > 12 {
 		shortID = shortID[:12]
@@ -194,16 +194,16 @@ func formatGroupedEventsWithTemplate(tmplStr string, events []docker.Event, dock
 		isGrouped:   true,
 	}
 
-	// Parse template
+	// 解析模板
 	tmpl, err := template.New("message").Parse(tmplStr)
 	if err != nil {
-		return "", "", fmt.Errorf("parse template: %w", err)
+		return "", "", fmt.Errorf("解析模板失败: %w", err)
 	}
 
-	// Execute template
+	// 执行模板
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", "", fmt.Errorf("execute template: %w", err)
+		return "", "", fmt.Errorf("执行模板失败: %w", err)
 	}
 
 	return strings.TrimSpace(buf.String()), "", nil
