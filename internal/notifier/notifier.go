@@ -96,12 +96,12 @@ func (n *notifierImpl) NotifyEvent(ctx context.Context, cfg *config.Config, even
 		body, _, err = formatEventWithTemplate(cfg.MessageTemplate, event, n.dockerCli, cfg.LogLines)
 		if err != nil {
 			n.logger.Warn("使用模板格式化事件失败，回退到默认格式", "error", err)
-			subject, body = formatEvent(cfg.NotifySubject, event)
+			subject, body = formatEvent(cfg.NotifySubject, event, n.dockerCli, cfg.LogLines)
 		} else {
 			subject = fmt.Sprintf("%s: %s %s", cfg.NotifySubject, event.Type, event.Action)
 		}
 	} else {
-		subject, body = formatEvent(cfg.NotifySubject, event)
+		subject, body = formatEvent(cfg.NotifySubject, event, n.dockerCli, cfg.LogLines)
 	}
 
 	if err := n.client.Send(ctx, subject, body); err != nil {
@@ -130,7 +130,7 @@ func (n *notifierImpl) NotifyGroupedEvents(ctx context.Context, cfg *config.Conf
 		body, _, err = formatGroupedEventsWithTemplate(cfg.MessageTemplate, events, n.dockerCli, cfg.LogLines)
 		if err != nil {
 			n.logger.Warn("使用模板格式化分组事件失败，回退到默认格式", "error", err)
-			subject, body = formatGroupedEvents(cfg.NotifySubject, events)
+			subject, body = formatGroupedEvents(cfg.NotifySubject, events, n.dockerCli, cfg.LogLines)
 		} else {
 			// 从事件操作中生成主题
 			actions := make(map[string]bool)
@@ -145,7 +145,7 @@ func (n *notifierImpl) NotifyGroupedEvents(ctx context.Context, cfg *config.Conf
 			subject = fmt.Sprintf("%s: %d 个事件 (%s)", cfg.NotifySubject, len(events), strings.Join(actionList, ", "))
 		}
 	} else {
-		subject, body = formatGroupedEvents(cfg.NotifySubject, events)
+		subject, body = formatGroupedEvents(cfg.NotifySubject, events, n.dockerCli, cfg.LogLines)
 	}
 
 	if err := n.client.Send(ctx, subject, body); err != nil {

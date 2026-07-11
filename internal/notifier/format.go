@@ -1,17 +1,76 @@
 package notifier
 
 import (
+	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"maps"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/filippofinke/docker-events/internal/docker"
 )
 
+// stripDockerLogHeaders 剥离 Docker ContainerLogs 流中每帧前的 8 字节二进制头
+// 格式：[1B stream type][3B zero][4B big-endian size][payload]
+func stripDockerLogHeaders(raw []byte) string {
+	var result strings.Builder
+	buf := raw
+	for len(buf) >= 8 {
+		// 读取帧大小（字节 4-7，big-endian uint32）
+		frameSize := int(binary.BigEndian.Uint32(buf[4:8]))
+		buf = buf[8:]
+		if frameSize > len(buf) {
+			frameSize = len(buf)
+		}
+		result.Write(buf[:frameSize])
+		buf = buf[frameSize:]
+	}
+	// 剩余不足 8 字节的内容直接追加（可能是无头的纯文本）
+	if len(buf) > 0 {
+		result.Write(buf)
+	}
+	return result.String()
+}
+
+// fetchContainerLogs 获取容器日志，仅在 container 类型事件且 logLines > 0 时拉取
+func fetchContainerLogs(dockerCli *dockerclient.Client, containerID string, event docker.Event, logLines int) string {
+	if logLines <= 0 || dockerCli == nil || containerID == "" {
+		return ""
+	}
+	if event.Type != "container" {
+		return ""
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	opts := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Tail:       fmt.Sprintf("%d", logLines),
+	}
+
+	logs, err := dockerCli.ContainerLogs(ctx, containerID, opts)
+	if err != nil {
+		return fmt.Sprintf("[获取日志失败: %v]", err)
+	}
+	defer logs.Close()
+
+	raw, err := io.ReadAll(logs)
+	if err != nil {
+		return fmt.Sprintf("[读取日志失败: %v]", err)
+	}
+
+	return strings.TrimSpace(stripDockerLogHeaders(raw))
+}
+
 // formatEvent 格式化单个 Docker 事件，返回通知主题和正文
-func formatEvent(subjectPrefix string, event docker.Event) (string, string) {
+func formatEvent(subjectPrefix string, event docker.Event, dockerCli *dockerclient.Client, logLines int) (string, string) {
 	prefix := strings.TrimSpace(subjectPrefix)
 	if prefix == "" {
 		prefix = "Docker 事件"
@@ -52,17 +111,26 @@ func formatEvent(subjectPrefix string, event docker.Event) (string, string) {
 		}
 	}
 
+	// 拉取容器日志
+	containerID := event.Actor.ID
+	if containerID == "" {
+		containerID = event.ID
+	}
+	if logs := fetchContainerLogs(dockerCli, containerID, event, logLines); logs != "" {
+		body.WriteString(fmt.Sprintf("\n📝 日志:\n%s\n", logs))
+	}
+
 	return subject, strings.TrimSpace(body.String())
 }
 
 // formatGroupedEvents 格式化多个分组的 Docker 事件，返回通知主题和正文
-func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, string) {
+func formatGroupedEvents(subjectPrefix string, events []docker.Event, dockerCli *dockerclient.Client, logLines int) (string, string) {
 	if len(events) == 0 {
 		return "", ""
 	}
 
 	if len(events) == 1 {
-		return formatEvent(subjectPrefix, events[0])
+		return formatEvent(subjectPrefix, events[0], dockerCli, logLines)
 	}
 
 	prefix := strings.TrimSpace(subjectPrefix)
@@ -137,6 +205,11 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event) (string, s
 			body.WriteString(fmt.Sprintf(" (📋 状态: %s)", event.Status))
 		}
 		body.WriteString("\n")
+	}
+
+	// 拉取第一个事件的容器日志
+	if logs := fetchContainerLogs(dockerCli, containerID, events[0], logLines); logs != "" {
+		body.WriteString(fmt.Sprintf("\n📝 日志:\n%s\n", logs))
 	}
 
 	return subject, strings.TrimSpace(body.String())

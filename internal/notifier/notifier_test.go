@@ -14,7 +14,7 @@ func TestFormatEvent_Minimal(t *testing.T) {
 		Actor:     docker.Actor{ID: "actor"},
 		Timestamp: time.Unix(0, 0),
 	}
-	subj, body := formatEvent("prefix", e)
+	subj, body := formatEvent("prefix", e, nil, 0)
 	if subj == "" || body == "" {
 		t.Fatalf("expected non-empty subject and body, got %q / %q", subj, body)
 	}
