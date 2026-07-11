@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 type EventGrouper struct {
 	notifier      Notifier
 	cfg           *config.Config
+	logger        *slog.Logger
 	mu            sync.Mutex
 	groups        map[string]*eventGroup
 	windowDur     time.Duration
@@ -24,10 +26,11 @@ type eventGroup struct {
 	timer       *time.Timer
 }
 
-func NewEventGrouper(notifier Notifier, cfg *config.Config) *EventGrouper {
+func NewEventGrouper(notifier Notifier, cfg *config.Config, logger *slog.Logger) *EventGrouper {
 	eg := &EventGrouper{
 		notifier:  notifier,
 		cfg:       cfg,
+		logger:    logger,
 		groups:    make(map[string]*eventGroup),
 		windowDur: cfg.EventGroupWindow,
 	}
@@ -108,10 +111,14 @@ func (eg *EventGrouper) flushGroup(events []docker.Event) {
 
 	if len(events) == 1 {
 		// 单个事件，正常发送
-		_ = eg.notifier.NotifyEvent(ctx, eg.cfg, events[0])
+		if err := eg.notifier.NotifyEvent(ctx, eg.cfg, events[0]); err != nil {
+			eg.logger.Error("发送事件通知失败", "error", err, "type", events[0].Type, "action", events[0].Action)
+		}
 	} else {
 		// 多个事件，分组发送
-		_ = eg.notifier.NotifyGroupedEvents(ctx, eg.cfg, events)
+		if err := eg.notifier.NotifyGroupedEvents(ctx, eg.cfg, events); err != nil {
+			eg.logger.Error("发送分组事件通知失败", "error", err, "count", len(events))
+		}
 	}
 }
 

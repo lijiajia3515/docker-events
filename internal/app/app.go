@@ -35,7 +35,7 @@ func Run(ctx context.Context, logOut io.Writer) error {
 
 	n.SetDockerClient(watcher.Client())
 
-	grouper := notifier.NewEventGrouper(n, cfg)
+	grouper := notifier.NewEventGrouper(n, cfg, logger)
 	defer grouper.Shutdown()
 
 	logger.Info("启动 Docker 事件监听器", "filters", cfg.DockerFilters, "types", cfg.DockerEventTypes)
