@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -14,6 +15,14 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	"github.com/filippofinke/docker-events/internal/docker"
 )
+
+// ansiPattern 匹配 ANSI 转义序列（终端颜色、光标控制等）
+var ansiPattern = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+
+// stripANSI 移除字符串中的 ANSI 转义序列
+func stripANSI(s string) string {
+	return ansiPattern.ReplaceAllString(s, "")
+}
 
 // stripDockerLogHeaders 剥离 Docker ContainerLogs 流中每帧前的 8 字节二进制头
 // 格式：[1B stream type][3B zero][4B big-endian size][payload]
@@ -66,7 +75,7 @@ func fetchContainerLogs(dockerCli *dockerclient.Client, containerID string, even
 		return fmt.Sprintf("[读取日志失败: %v]", err)
 	}
 
-	return strings.TrimSpace(stripDockerLogHeaders(raw))
+	return strings.TrimSpace(stripANSI(stripDockerLogHeaders(raw)))
 }
 
 // formatEvent 格式化单个 Docker 事件，返回通知主题和正文
@@ -205,6 +214,25 @@ func formatGroupedEvents(subjectPrefix string, events []docker.Event, dockerCli 
 			body.WriteString(fmt.Sprintf(" (📋 状态: %s)", event.Status))
 		}
 		body.WriteString("\n")
+
+		// 显示每个事件相对于公共属性的差异属性（最多 5 个，避免消息过长）
+		if len(event.Actor.Attributes) > 0 {
+			diffKeys := make([]string, 0)
+			for key, val := range event.Actor.Attributes {
+				if commonVal, ok := commonAttrs[key]; !ok || commonVal != val {
+					diffKeys = append(diffKeys, key)
+				}
+			}
+			sort.Strings(diffKeys)
+			maxDiff := 5
+			for j, key := range diffKeys {
+				if j >= maxDiff {
+					body.WriteString(fmt.Sprintf("     ...还有 %d 个属性\n", len(diffKeys)-maxDiff))
+					break
+				}
+				body.WriteString(fmt.Sprintf("     %s=%s\n", key, event.Actor.Attributes[key]))
+			}
+		}
 	}
 
 	// 拉取第一个事件的容器日志
